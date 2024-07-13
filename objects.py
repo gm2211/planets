@@ -26,7 +26,7 @@ class PendingCircle:
     start_time: float
 
     def to_circle(self) -> Circle:
-        size = int(100 * (time.time() - self.start_time))
+        size = int(30 * (time.time() - self.start_time))
         return Circle(self.x, self.y, size)
 
 
