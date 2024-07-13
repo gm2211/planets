@@ -1,25 +1,19 @@
-import numpy as np
-from scipy.spatial import cKDTree
-from typing import List
+from objects import Circle, GameState
 
-from objects import Circle
 
-def bounding_box(sphere: Circle) -> Square:
+def any_collisions(candidate: Circle, state: GameState) -> bool:
+    if state.circles_tree is None:
+        return False
 
-def validate_no_collitions(candidate: Circle, circles: List[Circle]) -> bool:
-    boundingBoxes = np.array([(1, 1, 1, 2, 2, 2), (3, 3, 3, 6, 6, 6), (5, 5, 5, 7, 7, 7), (7, 7, 7, 8, 8, 8)])
+    distance_to_nearest, index_of_nearest = state.circles_tree.query(
+        [candidate.x, candidate.y],
+        k=1,
+        distance_upper_bound=state.largest_radius + candidate.radius + 1
+    )
 
-    centers = boundingBoxes[:, :3] + 0.5 * (boundingBoxes[:, 3:] - boundingBoxes[:, :3])
+    if index_of_nearest >= len(state.circles):
+        return False
 
-    tree = cKDTree(centers)
+    nearest = state.circles[index_of_nearest]
 
-    distances, indices = tree.query(centers, k=3)
-
-    colisions = []
-    for i in range(len(indices)):
-        for j in indices[i, 1:]:
-            if i < j and not np.all(np.logical_or(boundingBoxes[i, :3] > boundingBoxes[j, 3:],
-                                                  boundingBoxes[i, 3:] < boundingBoxes[j, :3])):
-                collision = (boundingBoxes[i], boundingBoxes[j])
-                colisions.append(collision)
-                print(collision)
+    return distance_to_nearest <= candidate.radius + nearest.radius

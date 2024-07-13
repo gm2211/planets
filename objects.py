@@ -1,8 +1,10 @@
+import dataclasses
 import time
 from typing import List
 from dataclasses import dataclass, field
 
 import pygame
+from scipy.spatial import KDTree
 
 
 @dataclass
@@ -32,17 +34,21 @@ class PendingCircle:
 class GameState:
     running: bool = True
     circles: List[Circle] = field(default_factory=list)
+    circles_tree: KDTree = None
     pending_circle: PendingCircle = None
+    largest_radius: int = 0
 
     def with_running(self, running: bool) -> 'GameState':
-        return GameState(running=running, circles=self.circles)
+        return dataclasses.replace(self, running=running)
 
     def with_append_circle(self, circle: Circle) -> 'GameState':
-        return GameState(running=self.running, circles=self.circles + [circle])
+        new_circles = self.circles + [circle]
+        return dataclasses.replace(
+            self,
+            circles=new_circles,
+            circles_tree=KDTree([[circle.x, circle.y] for circle in new_circles]),
+            largest_radius=max(self.largest_radius, circle.radius)
+        )
 
     def with_pending_circle(self, x: int, y: int) -> 'GameState':
-        return GameState(
-            running=self.running,
-            circles=self.circles,
-            pending_circle=PendingCircle(x, y, time.time())
-        )
+        return dataclasses.replace(self, pending_circle=PendingCircle(x, y, time.time()))

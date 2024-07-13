@@ -1,5 +1,6 @@
 import pygame
 
+from collisions import any_collisions
 from objects import GameState
 
 
@@ -14,7 +15,9 @@ def handle_interrupts(state: GameState) -> GameState:
             new_state = new_state.with_pending_circle(x, y)
         if event.type == pygame.MOUSEBUTTONUP:
             if new_state.pending_circle is not None:
-                new_state = new_state.with_append_circle(new_state.pending_circle.to_circle())
+                circle = new_state.pending_circle.to_circle()
+                if not any_collisions(circle, new_state):
+                    new_state = new_state.with_append_circle(circle)
                 new_state.pending_circle = None
 
     return new_state
@@ -29,7 +32,6 @@ def draw(state: GameState, screen: pygame.Surface):
     if state.pending_circle is not None:
         pending_circle = state.pending_circle.to_circle()
 
-        pygame.draw.rect(screen, white, pending_circle.bounding_box(), width=2)  # width is border width
         pygame.draw.circle(
             screen,
             white,
