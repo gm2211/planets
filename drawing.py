@@ -7,6 +7,12 @@ white = (255, 255, 255)
 
 def draw(state: GameState, screen: pygame.Surface, debug: bool):
     screen.fill((0, 0, 0))
+    write_text(
+        0, 0,
+        'Press "q" to quit, "p" to pause, "r" to reset, "k" to increase radius, "j" to decrease radius',
+        screen
+    )
+    write_text(0, 20, f'radius: {state.radius}', screen)
     border = 1 if debug else 0
 
     for planet in state.planets:

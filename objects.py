@@ -1,8 +1,7 @@
 import dataclasses
 import math
-import time
-from typing import List
 from dataclasses import dataclass, field
+from typing import List
 
 import pygame
 from scipy.spatial import KDTree
@@ -55,6 +54,8 @@ class PendingPlanet:
 class GameState:
     quit: bool = False
     paused: bool = False
+    radius: int = 15
+    radius_change: int = 0  # -1 for decreasing, 0 for now change, 1 for increasing
     planets: List[Planet] = field(default_factory=list)
     planets_tree: KDTree | None = None
     pending_planet: PendingPlanet | None = None
@@ -69,12 +70,6 @@ class GameState:
     def copy(self, **changes) -> 'GameState':
         return dataclasses.replace(self, **changes)
 
-    def with_quit(self, quit: bool) -> 'GameState':
-        return self.copy(quit=quit)
-
-    def with_paused(self, paused: bool) -> 'GameState':
-        return self.copy(paused=paused)
-
     def with_append_planet(self, planet: Planet) -> 'GameState':
         new_planets = self.planets + [planet]
         return self.copy(
@@ -82,9 +77,6 @@ class GameState:
             planets_tree=self.make_kdtree(new_planets),
             largest_radius=max(self.largest_radius, planet.radius)
         )
-
-    def with_pending_planet(self, x: int, y: int) -> 'GameState':
-        return self.copy(pending_planet=PendingPlanet(x, y))
 
     def clear_planets(self) -> 'GameState':
         self.planets = []
