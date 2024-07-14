@@ -1,4 +1,5 @@
 import dataclasses
+import math
 import time
 from typing import List
 from dataclasses import dataclass, field
@@ -8,47 +9,64 @@ from scipy.spatial import KDTree
 
 
 @dataclass
-class Circle:
-    x: int = 0
-    y: int = 0
+class Planet:
+    x: float = 0
+    y: float = 0
     radius: int = 15
+    momentum: (float, float) = (0, 0)
+    density: int = 100
+
+    def copy(self, **changes) -> 'Planet':
+        return dataclasses.replace(self, **changes)
 
     def bounding_box(self) -> pygame.Rect:
         top_left_x = self.x - self.radius
         top_left_y = self.y - self.radius
         return pygame.Rect(top_left_x, top_left_y, self.radius * 2, self.radius * 2)
 
+    def area(self) -> float:
+        return math.pi * self.radius ** 2
+
+    def mass(self) -> float:
+        return self.area() * self.density
+
+    def distance_to(self, planet: 'Planet') -> float:
+        return math.sqrt((self.x - planet.x) ** 2 + (self.y - planet.y) ** 2)
+
 
 @dataclass
-class PendingCircle:
+class PendingPlanet:
     x: int
     y: int
     start_time: float
 
-    def to_circle(self) -> Circle:
+    def to_planet(self) -> Planet:
         size = int(30 * (time.time() - self.start_time))
-        return Circle(self.x, self.y, size)
+        return Planet(self.x, self.y, size)
 
 
 @dataclass
 class GameState:
     running: bool = True
-    circles: List[Circle] = field(default_factory=list)
-    circles_tree: KDTree = None
-    pending_circle: PendingCircle = None
+    planets: List[Planet] = field(default_factory=list)
+    planets_tree: KDTree = None
+    pending_planet: PendingPlanet = None
     largest_radius: int = 0
+    universe_bottom_right = (1000, 1000)
+
+    def copy(self, **changes) -> 'GameState':
+        return dataclasses.replace(self, **changes)
 
     def with_running(self, running: bool) -> 'GameState':
-        return dataclasses.replace(self, running=running)
+        return self.copy(running=running)
 
-    def with_append_circle(self, circle: Circle) -> 'GameState':
-        new_circles = self.circles + [circle]
-        return dataclasses.replace(
-            self,
-            circles=new_circles,
-            circles_tree=KDTree([[circle.x, circle.y] for circle in new_circles]),
-            largest_radius=max(self.largest_radius, circle.radius)
+    def with_append_planet(self, planet: Planet) -> 'GameState':
+        new_planets = self.planets + [planet]
+        return self.copy(
+            planets=new_planets,
+            planets_tree=KDTree([[planet.x, planet.y] for planet in new_planets]),
+            largest_radius=max(self.largest_radius, planet.radius)
         )
 
-    def with_pending_circle(self, x: int, y: int) -> 'GameState':
-        return dataclasses.replace(self, pending_circle=PendingCircle(x, y, time.time()))
+    def with_pending_planet(self, x: int, y: int) -> 'GameState':
+        return self.copy(pending_planet=PendingPlanet(x, y, time.time()))
