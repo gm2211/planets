@@ -1,5 +1,8 @@
+import math
+
 import scipy.constants
 
+from collisions import find_first_collision
 from objects import GameState
 
 
@@ -8,7 +11,7 @@ def gravity_acceleration(m: float, d: float) -> float:
     # F = G * m1 * m2 / d^2,
     # a = F / m1,
     # a = G * m2 / d^2
-    return scipy.constants.G * m / d ** 2
+    return scipy.constants.G * m / max(scipy.constants.epsilon_0, d ** 2)
 
 
 def apply_gravitational_forces(state: GameState) -> GameState:
@@ -45,11 +48,7 @@ def apply_gravitational_forces(state: GameState) -> GameState:
 
 
 def move_planets(state: GameState) -> GameState:
-    new_state = state.copy()
-
-    new_state.planets = []
-    new_state.planets_tree = None
-    new_state.largest_radius = 0
+    new_state = state.copy().clear_planets()
 
     for planet in state.planets:
         moved_planet = planet.copy()
@@ -58,5 +57,45 @@ def move_planets(state: GameState) -> GameState:
         moved_planet.y -= planet.momentum[1]
 
         new_state = new_state.with_append_planet(moved_planet)
+
+    return new_state
+
+
+def check_collisions_absorb(state: GameState) -> GameState:
+    new_state = state.copy().clear_planets()
+    planets = state.planets.copy()
+    removed_planets = []
+
+    for planet in planets:
+        if planet in removed_planets:
+            continue
+
+        planets_to_consider = list(set(planets) - set(removed_planets) - {planet})
+
+        if len(planets_to_consider) == 0:
+            new_state = new_state.with_append_planet(planet)
+            continue
+
+        collision = find_first_collision(
+            planet,
+            planets_to_consider,
+            GameState.make_kdtree(planets_to_consider),
+            max(planets_to_consider, key=lambda p: p.radius).radius
+        )
+
+        if collision is None:
+            new_state = new_state.with_append_planet(planet)
+            continue
+
+        surviving_planet, dying_planet = (
+            (planet, collision)
+            if planet.mass() > collision.mass()
+            else (collision, planet)
+        )
+        # Absorb the mass (not the radius) of the other planet
+        surviving_with_absorbed = surviving_planet.copy(
+            radius=math.sqrt(surviving_planet.radius ** 2 + dying_planet.radius ** 2))
+        new_state = new_state.with_append_planet(surviving_with_absorbed)
+        removed_planets.append(dying_planet)
 
     return new_state

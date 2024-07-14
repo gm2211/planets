@@ -14,7 +14,7 @@ class Planet:
     y: float = 0
     radius: int = 15
     momentum: (float, float) = (0, 0)
-    density: int = 100
+    density: int = 1_000
 
     def copy(self, **changes) -> 'Planet':
         return dataclasses.replace(self, **changes)
@@ -33,26 +33,37 @@ class Planet:
     def distance_to(self, planet: 'Planet') -> float:
         return math.sqrt((self.x - planet.x) ** 2 + (self.y - planet.y) ** 2)
 
+    def __hash__(self):
+        return hash((self.x, self.y, self.radius, self.momentum[0], self.momentum[1], self.density))
+
 
 @dataclass
 class PendingPlanet:
     x: int
     y: int
     start_time: float
+    momentum: (float, float) = (0, 0)
+
+    def copy(self, **changes) -> 'PendingPlanet':
+        return dataclasses.replace(self, **changes)
 
     def to_planet(self) -> Planet:
-        size = int(30 * (time.time() - self.start_time))
-        return Planet(self.x, self.y, size)
+        radius = int(40 * (time.time() - self.start_time))
+        return Planet(self.x, self.y, radius=radius, momentum=self.momentum)
 
 
 @dataclass
 class GameState:
     running: bool = True
     planets: List[Planet] = field(default_factory=list)
-    planets_tree: KDTree = None
-    pending_planet: PendingPlanet = None
-    largest_radius: int = 0
-    universe_bottom_right = (1000, 1000)
+    planets_tree: KDTree | None = None
+    pending_planet: PendingPlanet | None = None
+    largest_radius: float = 0
+    universe_bottom_right = (2000, 1000)
+
+    @staticmethod
+    def make_kdtree(planets: List[Planet]) -> KDTree:
+        return KDTree([[planet.x, planet.y] for planet in planets])
 
     def copy(self, **changes) -> 'GameState':
         return dataclasses.replace(self, **changes)
@@ -64,9 +75,15 @@ class GameState:
         new_planets = self.planets + [planet]
         return self.copy(
             planets=new_planets,
-            planets_tree=KDTree([[planet.x, planet.y] for planet in new_planets]),
+            planets_tree=self.make_kdtree(new_planets),
             largest_radius=max(self.largest_radius, planet.radius)
         )
 
     def with_pending_planet(self, x: int, y: int) -> 'GameState':
         return self.copy(pending_planet=PendingPlanet(x, y, time.time()))
+
+    def clear_planets(self) -> 'GameState':
+        self.planets = []
+        self.planets_tree = None
+        self.largest_radius = 0
+        return self
