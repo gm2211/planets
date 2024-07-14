@@ -1,6 +1,6 @@
 import pygame
 
-from objects import Planet
+from objects import Planet, GameState
 
 white = (255, 255, 255)
 
@@ -24,11 +24,14 @@ def draw(state: GameState, screen: pygame.Surface, font: pygame.font.Font, debug
 def draw_planet(planet: Planet, border: int, screen: pygame.Surface):
     global white
     pygame.draw.circle(screen, white, (planet.x, planet.y), planet.radius, width=border)
+
+    # Draw the momentum vector
     pygame.draw.line(
         screen,
         white,
         (planet.x, planet.y),
-        (planet.x - planet.momentum[0], planet.y - planet.momentum[1])
+        # Multiply by 100 to make the vector more visible
+        (planet.x - planet.momentum[0] * 10_000, planet.y - planet.momentum[1] * 10_000)
     )
 
 

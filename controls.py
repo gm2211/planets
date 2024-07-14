@@ -27,8 +27,14 @@ def handle_interrupts(state: GameState) -> GameState:
 
     if new_state.pending_planet is not None:
         mouse_x, mouse_y = pygame.mouse.get_pos()
+        scale_factor = 10_000
         pending_planet = new_state.pending_planet
-        new_pending_planet = pending_planet.copy(momentum=(pending_planet.x - mouse_x, pending_planet.y - mouse_y))
+        new_momentum = (
+            -(pending_planet.x - mouse_x) / scale_factor,
+            -(pending_planet.y - mouse_y) / scale_factor
+        )
+        print(new_momentum)
+        new_pending_planet = pending_planet.copy(momentum=new_momentum)
         new_state = new_state.copy(pending_planet=new_pending_planet)
 
     return new_state
