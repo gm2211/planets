@@ -1,7 +1,7 @@
 import pygame
 
 from controls import handle_interrupts
-from drawing import draw
+from drawing import draw, write_text
 from objects import GameState
 from physics import apply_gravitational_forces, move_planets, check_collisions_absorb
 
@@ -10,12 +10,21 @@ if __name__ == '__main__':
 
     pygame.init()
     pygame.font.init()
-    comic_sans = pygame.font.SysFont('Comic Sans MS', 12)
     display = pygame.display.set_mode(game_state.universe_bottom_right)
     debug = False
 
-    while game_state.running:
+    while not game_state.quit:
         game_state = handle_interrupts(game_state)
+
+        if game_state.paused:
+            write_text(
+                GameState.universe_bottom_right[0] / 2,
+                GameState.universe_bottom_right[1] / 2,
+                'PAUSED',
+                display
+            )
+            pygame.display.flip()
+            continue
 
         if game_state.pending_planet is None:
             game_state = apply_gravitational_forces(game_state)
@@ -23,6 +32,6 @@ if __name__ == '__main__':
             if len(game_state.planets) > 1:
                 game_state = check_collisions_absorb(game_state)
 
-        draw(game_state, display, comic_sans, debug)
+        draw(game_state, display, debug)
 
     pygame.quit()

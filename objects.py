@@ -41,25 +41,26 @@ class Planet:
 class PendingPlanet:
     x: int
     y: int
-    start_time: float
+    radius: int = 15
     momentum: (float, float) = (0, 0)
 
     def copy(self, **changes) -> 'PendingPlanet':
         return dataclasses.replace(self, **changes)
 
     def to_planet(self) -> Planet:
-        radius = int(40 * (time.time() - self.start_time))
-        return Planet(self.x, self.y, radius=radius, momentum=self.momentum)
+        return Planet(self.x, self.y, radius=self.radius, momentum=self.momentum)
 
 
 @dataclass
 class GameState:
-    running: bool = True
+    quit: bool = False
+    paused: bool = False
     planets: List[Planet] = field(default_factory=list)
     planets_tree: KDTree | None = None
     pending_planet: PendingPlanet | None = None
     largest_radius: float = 0
     universe_bottom_right = (2000, 1000)
+    momentum_vector_scale_factor = 5_000
 
     @staticmethod
     def make_kdtree(planets: List[Planet]) -> KDTree:
@@ -68,8 +69,11 @@ class GameState:
     def copy(self, **changes) -> 'GameState':
         return dataclasses.replace(self, **changes)
 
-    def with_running(self, running: bool) -> 'GameState':
-        return self.copy(running=running)
+    def with_quit(self, quit: bool) -> 'GameState':
+        return self.copy(quit=quit)
+
+    def with_paused(self, paused: bool) -> 'GameState':
+        return self.copy(paused=paused)
 
     def with_append_planet(self, planet: Planet) -> 'GameState':
         new_planets = self.planets + [planet]
@@ -80,7 +84,7 @@ class GameState:
         )
 
     def with_pending_planet(self, x: int, y: int) -> 'GameState':
-        return self.copy(pending_planet=PendingPlanet(x, y, time.time()))
+        return self.copy(pending_planet=PendingPlanet(x, y))
 
     def clear_planets(self) -> 'GameState':
         self.planets = []
