@@ -6,21 +6,27 @@ white = (255, 255, 255)
 yellow = (255, 255, 0)
 
 
-def draw(state: GameState, screen: pygame.Surface, debug: bool):
+def draw(state: GameState, screen: pygame.Surface):
     screen.fill((0, 0, 0))
     write_text(
         0, 0,
-        'Press "q" to quit, "p" to pause, "r" to reset, "k" to increase radius, "j" to decrease radius',
+        '"q" to quit, "p" to pause, "r" to reset, "k" to increase radius, "j" to decrease radius',
         screen
     )
-    write_text(0, 20, f'radius: {state.radius}', screen)
-    write_text(0, 40, f'time warp: {state.time_warp}', screen)
-    write_text(0, 60, f'new planet fixed position: {state.new_planet_fixed_position}', screen)
-    border = 1 if debug else 0
+    write_text(
+        0, 20,
+        '"f" to speed up, "s" to slow down, "e" to increase density, "w" to decrease density, "d" to debug',
+        screen
+    )
+    write_text(0, 40, f'radius: {state.radius}', screen)
+    write_text(0, 60, f'time warp: {state.time_warp}', screen)
+    write_text(0, 80, f'new planet density: {state.new_planet_density}', screen)
+    write_text(0, 100, f'new planet fixed position: {state.new_planet_fixed_position}', screen)
+    border = 1 if state.debug else 0
 
     for planet in state.planets:
         draw_planet(state, planet, border, screen)
-        if debug:
+        if state.debug:
             describe_planet(planet, screen)
 
     if state.pending_planet is not None:
@@ -43,7 +49,7 @@ def draw_planet(state: GameState, planet: Planet, border: int, screen: pygame.Su
         (
             planet.x - planet.momentum[0] * state.momentum_input_scale,
             planet.y - planet.momentum[1] * state.momentum_input_scale
-        ),
+        )
     )
     for x, y in planet.track:
         pygame.draw.circle(screen, yellow, (x, y), 1)
@@ -51,7 +57,7 @@ def draw_planet(state: GameState, planet: Planet, border: int, screen: pygame.Su
 
 def describe_planet(planet: Planet, screen: pygame.Surface):
     text: str = f'PLANET' \
-                f'subject to gravity: {planet.fixed_position},' \
+                f'fixed position: {planet.fixed_position},' \
                 f'coord: ({planet.x}, {planet.y}),' \
                 f'mass: {planet.mass():.2f},' \
                 f'traj: ({planet.momentum[0]}, {planet.momentum[1]})'

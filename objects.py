@@ -59,6 +59,7 @@ class PendingPlanet:
     x: int
     y: int
     radius: int = 15
+    density: int = 1_000
     momentum: (float, float) = (0, 0)
     fixed_position: bool = False
 
@@ -67,17 +68,27 @@ class PendingPlanet:
 
     def to_planet(self) -> Planet:
         momentum = self.momentum if not self.fixed_position else (0, 0)
-        return Planet(self.x, self.y, radius=self.radius, momentum=momentum, fixed_position=self.fixed_position)
+        return Planet(
+            x=self.x,
+            y=self.y,
+            radius=self.radius,
+            momentum=momentum,
+            density=self.density,
+            fixed_position=self.fixed_position
+        )
 
 
 @dataclass(frozen=True)
 class GameState:
     quit: bool = False
     paused: bool = False
+    debug: bool = False
     radius: int = 15
     radius_change: int = 0  # -1 for decreasing, 0 for now change, 1 for increasing
     time_warp: int = 50
     time_warp_change: int = 0  # -1 for decreasing, 0 for now change, 1 for increasing
+    new_planet_density: int = 1_000
+    new_planet_density_change: int = 0  # -1 for decreasing, 0 for now change, 1 for increasing
     planets: List[Planet] = field(default_factory=list)
     planets_tree: KDTree | None = None
     pending_planet: PendingPlanet | None = None
@@ -85,7 +96,6 @@ class GameState:
     universe_bottom_right: (int, int) = (2000, 1000)
     momentum_input_scale: int = 5_000
     new_planet_fixed_position: bool = False
-    new_planet_density: int = 1_000
 
     @staticmethod
     def make_kdtree(planets: List[Planet]) -> KDTree:

@@ -31,9 +31,15 @@ def handle_interrupts(state: GameState) -> GameState:
                 new_state = new_state.copy(time_warp_change=1)
             elif pygame.key.name(event.key) == 's':
                 new_state = new_state.copy(time_warp_change=-1)
+            elif pygame.key.name(event.key) == 'e':
+                new_state = new_state.copy(new_planet_density_change=1)
+            elif pygame.key.name(event.key) == 'w':
+                new_state = new_state.copy(new_planet_density_change=-1)
         if event.type == pygame.KEYUP:
             if pygame.key.name(event.key) == 'r':
                 new_state = GameState()
+            elif pygame.key.name(event.key) == 'd':
+                new_state = new_state.copy(debug=not new_state.debug)
             elif pygame.key.name(event.key) == 'q':
                 new_state = new_state.copy(quit=True)
             elif pygame.key.name(event.key) == 'p':
@@ -42,6 +48,8 @@ def handle_interrupts(state: GameState) -> GameState:
                 new_state = new_state.copy(radius_change=0)
             elif pygame.key.name(event.key) in ('f', 's'):
                 new_state = new_state.copy(time_warp_change=0)
+            elif pygame.key.name(event.key) in ('w', 'e'):
+                new_state = new_state.copy(new_planet_density_change=0)
             elif pygame.key.name(event.key) == 'g':
                 new_state = new_state.copy(new_planet_fixed_position=not new_state.new_planet_fixed_position)
 
@@ -57,6 +65,12 @@ def handle_interrupts(state: GameState) -> GameState:
     if new_state.time_warp_change != 0 and new_time_warp >= 1:
         new_state = new_state.copy(time_warp=new_time_warp)
 
+    # If we inside the if statement, it means either 'd' or 'e' was being held down.
+    # Also, we don't want a negative density
+    new_new_planet_density = new_state.new_planet_density + new_state.new_planet_density_change * 10
+    if new_state.new_planet_density_change != 0 and new_new_planet_density >= 1:
+        new_state = new_state.copy(new_planet_density=new_new_planet_density)
+
     if new_state.pending_planet is not None:
         mouse_x, mouse_y = pygame.mouse.get_pos()
         pending_planet = new_state.pending_planet
@@ -65,7 +79,11 @@ def handle_interrupts(state: GameState) -> GameState:
             -(pending_planet.y - mouse_y) / new_state.momentum_input_scale
         )
         new_pending_planet = pending_planet.copy(
-            momentum=new_momentum, radius=new_state.radius, fixed_position=new_state.new_planet_fixed_position)
+            momentum=new_momentum,
+            radius=new_state.radius,
+            density=new_state.new_planet_density,
+            fixed_position=new_state.new_planet_fixed_position
+        )
         new_state = new_state.copy(pending_planet=new_pending_planet)
 
     return new_state

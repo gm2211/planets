@@ -11,7 +11,6 @@ if __name__ == '__main__':
     pygame.init()
     pygame.font.init()
     display = pygame.display.set_mode(game_state.universe_bottom_right)
-    debug = False
 
     while not game_state.quit:
         game_state = handle_interrupts(game_state)
@@ -32,6 +31,6 @@ if __name__ == '__main__':
             if len(game_state.planets) > 1:
                 game_state = check_collisions_absorb(game_state)
 
-        draw(game_state, display, debug)
+        draw(game_state, display)
 
     pygame.quit()
