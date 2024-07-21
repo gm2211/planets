@@ -24,7 +24,7 @@ def draw(state: GameState, screen: pygame.Surface, debug: bool):
             describe_planet(planet, screen)
 
     if state.pending_planet is not None:
-        pending_planet = state.pending_planet.to_planet(state.new_planet_fixed_position)
+        pending_planet = state.pending_planet.to_planet()
         draw_planet(state, pending_planet, border, screen)
 
     pygame.display.flip()

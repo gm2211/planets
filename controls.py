@@ -18,7 +18,7 @@ def handle_interrupts(state: GameState) -> GameState:
             new_state = new_state.copy(pending_planet=pending_planet)
         if event.type == pygame.MOUSEBUTTONUP:
             if new_state.pending_planet is not None:
-                planet = new_state.pending_planet.to_planet(new_state.new_planet_fixed_position)
+                planet = new_state.pending_planet.to_planet()
                 if find_first_collision(new_state, planet) is None:
                     new_state = new_state.with_append_planet(planet)
                 new_state = new_state.copy(pending_planet=None)
@@ -63,8 +63,9 @@ def handle_interrupts(state: GameState) -> GameState:
         new_momentum = (
             -(pending_planet.x - mouse_x) / new_state.momentum_input_scale,
             -(pending_planet.y - mouse_y) / new_state.momentum_input_scale
-        ) if not new_state.new_planet_fixed_position else (0, 0)
-        new_pending_planet = pending_planet.copy(momentum=new_momentum, radius=new_state.radius)
+        )
+        new_pending_planet = pending_planet.copy(
+            momentum=new_momentum, radius=new_state.radius, fixed_position=new_state.new_planet_fixed_position)
         new_state = new_state.copy(pending_planet=new_pending_planet)
 
     return new_state

@@ -60,12 +60,14 @@ class PendingPlanet:
     y: int
     radius: int = 15
     momentum: (float, float) = (0, 0)
+    fixed_position: bool = False
 
     def copy(self, **changes) -> 'PendingPlanet':
         return dataclasses.replace(self, **changes)
 
-    def to_planet(self, subject_to_gravity: bool) -> Planet:
-        return Planet(self.x, self.y, radius=self.radius, momentum=self.momentum, fixed_position=subject_to_gravity)
+    def to_planet(self) -> Planet:
+        momentum = self.momentum if not self.fixed_position else (0, 0)
+        return Planet(self.x, self.y, radius=self.radius, momentum=momentum, fixed_position=self.fixed_position)
 
 
 @dataclass(frozen=True)
@@ -83,6 +85,7 @@ class GameState:
     universe_bottom_right: (int, int) = (2000, 1000)
     momentum_input_scale: int = 5_000
     new_planet_fixed_position: bool = False
+    new_planet_density: int = 1_000
 
     @staticmethod
     def make_kdtree(planets: List[Planet]) -> KDTree:
