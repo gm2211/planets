@@ -67,19 +67,20 @@ class PendingPlanet:
         return Planet(self.x, self.y, radius=self.radius, momentum=self.momentum)
 
 
-@dataclass
+@dataclass(frozen=True)
 class GameState:
     quit: bool = False
     paused: bool = False
     radius: int = 15
     radius_change: int = 0  # -1 for decreasing, 0 for now change, 1 for increasing
+    time_warp: int = 50
     time_warp_change: int = 0  # -1 for decreasing, 0 for now change, 1 for increasing
     planets: List[Planet] = field(default_factory=list)
     planets_tree: KDTree | None = None
     pending_planet: PendingPlanet | None = None
     largest_radius: float = 0
-    universe_bottom_right = (2000, 1000)
-    momentum_scale_factor = 5_000
+    universe_bottom_right: (int, int) = (2000, 1000)
+    momentum_input_scale: int = 5_000
 
     @staticmethod
     def make_kdtree(planets: List[Planet]) -> KDTree:
@@ -96,8 +97,5 @@ class GameState:
             largest_radius=max(self.largest_radius, planet.radius)
         )
 
-    def clear_planets(self) -> 'GameState':
-        self.planets = []
-        self.planets_tree = None
-        self.largest_radius = 0
-        return self
+    def with_no_planets(self) -> 'GameState':
+        return self.copy(planets=[], planets_tree=None, largest_radius=0)

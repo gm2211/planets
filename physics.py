@@ -48,14 +48,14 @@ def apply_gravitational_forces(state: GameState) -> GameState:
 
 
 def move_planets(state: GameState) -> GameState:
-    new_state = state.copy().clear_planets()
+    new_state = state.with_no_planets()
 
     for planet in state.planets:
         moved_planet = planet.copy()
         moved_planet.save_cur_pos_to_track()
 
-        moved_planet.x -= planet.momentum[0] * 5
-        moved_planet.y -= planet.momentum[1] * 5
+        moved_planet.x -= planet.momentum[0] * state.time_warp
+        moved_planet.y -= planet.momentum[1] * state.time_warp
 
         new_state = new_state.with_append_planet(moved_planet)
 
@@ -63,7 +63,7 @@ def move_planets(state: GameState) -> GameState:
 
 
 def check_collisions_absorb(state: GameState) -> GameState:
-    new_state = state.copy().clear_planets()
+    new_state = state.with_no_planets()
     planets = state.planets.copy()
     removed_planets = []
 

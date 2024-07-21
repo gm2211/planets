@@ -1,3 +1,5 @@
+import dataclasses
+
 import pygame
 
 from collisions import find_first_collision
@@ -18,7 +20,7 @@ def handle_interrupts(state: GameState) -> GameState:
                 planet = new_state.pending_planet.to_planet()
                 if find_first_collision(new_state, planet) is None:
                     new_state = new_state.with_append_planet(planet)
-                new_state.pending_planet = None
+                new_state = new_state.copy(pending_planet=None)
         if event.type == pygame.KEYDOWN:
             if pygame.key.name(event.key) == 'k':
                 new_state = new_state.copy(radius_change=1)
@@ -49,16 +51,16 @@ def handle_interrupts(state: GameState) -> GameState:
 
     # If we inside the if statement, it means either 'f' or 's' was being held down.
     # Also, we don't want a negative time warp factor
-    new_momentum_scale_factor = new_state.momentum_scale_factor + new_state.time_warp_change
-    if new_state.time_warp_change != 0 and new_momentum_scale_factor >= 0:
-        new_state = new_state.copy(momentum_scale_factor=new_momentum_scale_factor)
+    new_time_warp = new_state.time_warp + new_state.time_warp_change
+    if new_state.time_warp_change != 0 and new_time_warp >= 1:
+        new_state = new_state.copy(time_warp=new_time_warp)
 
     if new_state.pending_planet is not None:
         mouse_x, mouse_y = pygame.mouse.get_pos()
         pending_planet = new_state.pending_planet
         new_momentum = (
-            -(pending_planet.x - mouse_x) / new_state.momentum_scale_factor,
-            -(pending_planet.y - mouse_y) / new_state.momentum_scale_factor
+            -(pending_planet.x - mouse_x) / new_state.momentum_input_scale,
+            -(pending_planet.y - mouse_y) / new_state.momentum_input_scale
         )
         new_pending_planet = pending_planet.copy(momentum=new_momentum, radius=new_state.radius)
         new_state = new_state.copy(pending_planet=new_pending_planet)

@@ -14,7 +14,7 @@ def draw(state: GameState, screen: pygame.Surface, debug: bool):
         screen
     )
     write_text(0, 20, f'radius: {state.radius}', screen)
-    write_text(0, 70, f'time warp: {state.momentum_scale_factor}', screen)
+    write_text(0, 70, f'time warp: {state.time_warp}', screen)
     border = 1 if debug else 0
 
     for planet in state.planets:
@@ -40,8 +40,8 @@ def draw_planet(state: GameState, planet: Planet, border: int, screen: pygame.Su
         (planet.x, planet.y),
         # Multiply by 100 to make the vector more visible
         (
-            planet.x - planet.momentum[0] * state.momentum_scale_factor,
-            planet.y - planet.momentum[1] * state.momentum_scale_factor
+            planet.x - planet.momentum[0] * state.momentum_input_scale,
+            planet.y - planet.momentum[1] * state.momentum_input_scale
         ),
     )
     for x, y in planet.track:
