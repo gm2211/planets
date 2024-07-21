@@ -3,6 +3,7 @@ import pygame
 from objects import Planet, GameState
 
 white = (255, 255, 255)
+yellow = (255, 255, 0)
 
 
 def draw(state: GameState, screen: pygame.Surface, debug: bool):
@@ -13,20 +14,22 @@ def draw(state: GameState, screen: pygame.Surface, debug: bool):
         screen
     )
     write_text(0, 20, f'radius: {state.radius}', screen)
+    write_text(0, 70, f'time warp: {state.momentum_scale_factor}', screen)
     border = 1 if debug else 0
 
     for planet in state.planets:
-        draw_planet(planet, border, screen)
+        draw_planet(state, planet, border, screen)
         if debug:
             describe_planet(planet, screen)
 
     if state.pending_planet is not None:
         pending_planet = state.pending_planet.to_planet()
-        draw_planet(pending_planet, border, screen)
+        draw_planet(state, pending_planet, border, screen)
+
     pygame.display.flip()
 
 
-def draw_planet(planet: Planet, border: int, screen: pygame.Surface):
+def draw_planet(state: GameState, planet: Planet, border: int, screen: pygame.Surface):
     global white
     pygame.draw.circle(screen, white, (planet.x, planet.y), planet.radius, width=border)
 
@@ -37,10 +40,12 @@ def draw_planet(planet: Planet, border: int, screen: pygame.Surface):
         (planet.x, planet.y),
         # Multiply by 100 to make the vector more visible
         (
-            planet.x - planet.momentum[0] * GameState.momentum_vector_scale_factor,
-            planet.y - planet.momentum[1] * GameState.momentum_vector_scale_factor
+            planet.x - planet.momentum[0] * state.momentum_scale_factor,
+            planet.y - planet.momentum[1] * state.momentum_scale_factor
         ),
     )
+    for x, y in planet.track:
+        pygame.draw.circle(screen, yellow, (x, y), 1)
 
 
 def describe_planet(planet: Planet, screen: pygame.Surface):

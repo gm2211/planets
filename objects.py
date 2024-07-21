@@ -1,10 +1,12 @@
 import dataclasses
 import math
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Deque
 
 import pygame
 from scipy.spatial import KDTree
+
+type Point = (float, float)
 
 
 @dataclass
@@ -12,8 +14,10 @@ class Planet:
     x: float = 0
     y: float = 0
     radius: int = 15
-    momentum: (float, float) = (0, 0)
+    momentum: Point = (0, 0)  # a vector can be represented as the end point of the vector
     density: int = 1_000
+    track: Deque[Point] = field(default_factory=Deque)
+    max_track_length: int = 5_000
 
     def copy(self, **changes) -> 'Planet':
         return dataclasses.replace(self, **changes)
@@ -33,7 +37,20 @@ class Planet:
         return math.sqrt((self.x - planet.x) ** 2 + (self.y - planet.y) ** 2)
 
     def __hash__(self):
-        return hash((self.x, self.y, self.radius, self.momentum[0], self.momentum[1], self.density))
+        return hash((
+            self.x,
+            self.y,
+            self.radius,
+            self.momentum[0],
+            self.momentum[1],
+            self.density,
+            sum(x.__hash__() for x in self.track)
+        ))
+
+    def save_cur_pos_to_track(self):
+        self.track.append((self.x, self.y))
+        while len(self.track) > self.max_track_length:
+            self.track.popleft()
 
 
 @dataclass
@@ -56,12 +73,13 @@ class GameState:
     paused: bool = False
     radius: int = 15
     radius_change: int = 0  # -1 for decreasing, 0 for now change, 1 for increasing
+    time_warp_change: int = 0  # -1 for decreasing, 0 for now change, 1 for increasing
     planets: List[Planet] = field(default_factory=list)
     planets_tree: KDTree | None = None
     pending_planet: PendingPlanet | None = None
     largest_radius: float = 0
     universe_bottom_right = (2000, 1000)
-    momentum_vector_scale_factor = 5_000
+    momentum_scale_factor = 5_000
 
     @staticmethod
     def make_kdtree(planets: List[Planet]) -> KDTree:
