@@ -14,10 +14,11 @@ def handle_interrupts(state: GameState) -> GameState:
             new_state = new_state.copy(quit=True)
         if event.type == pygame.MOUSEBUTTONDOWN:
             mouse_x, mouse_y = pygame.mouse.get_pos()
-            new_state = new_state.copy(pending_planet=PendingPlanet(mouse_x, mouse_y, radius=new_state.radius))
+            pending_planet = PendingPlanet(mouse_x, mouse_y, radius=new_state.radius)
+            new_state = new_state.copy(pending_planet=pending_planet)
         if event.type == pygame.MOUSEBUTTONUP:
             if new_state.pending_planet is not None:
-                planet = new_state.pending_planet.to_planet()
+                planet = new_state.pending_planet.to_planet(new_state.new_planet_fixed_position)
                 if find_first_collision(new_state, planet) is None:
                     new_state = new_state.with_append_planet(planet)
                 new_state = new_state.copy(pending_planet=None)
@@ -36,12 +37,13 @@ def handle_interrupts(state: GameState) -> GameState:
             elif pygame.key.name(event.key) == 'q':
                 new_state = new_state.copy(quit=True)
             elif pygame.key.name(event.key) == 'p':
-                paused = not new_state.paused
-                new_state = new_state.copy(paused=paused)
+                new_state = new_state.copy(paused=not new_state.paused)
             elif pygame.key.name(event.key) in ('k', 'j'):
                 new_state = new_state.copy(radius_change=0)
             elif pygame.key.name(event.key) in ('f', 's'):
                 new_state = new_state.copy(time_warp_change=0)
+            elif pygame.key.name(event.key) == 'g':
+                new_state = new_state.copy(new_planet_fixed_position=not new_state.new_planet_fixed_position)
 
     # If we inside the if statement, it means either 'k' or 'j' was being held down.
     # Also, we don't want a negative radius
@@ -61,7 +63,7 @@ def handle_interrupts(state: GameState) -> GameState:
         new_momentum = (
             -(pending_planet.x - mouse_x) / new_state.momentum_input_scale,
             -(pending_planet.y - mouse_y) / new_state.momentum_input_scale
-        )
+        ) if not new_state.new_planet_fixed_position else (0, 0)
         new_pending_planet = pending_planet.copy(momentum=new_momentum, radius=new_state.radius)
         new_state = new_state.copy(pending_planet=new_pending_planet)
 

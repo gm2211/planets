@@ -14,7 +14,8 @@ def draw(state: GameState, screen: pygame.Surface, debug: bool):
         screen
     )
     write_text(0, 20, f'radius: {state.radius}', screen)
-    write_text(0, 70, f'time warp: {state.time_warp}', screen)
+    write_text(0, 40, f'time warp: {state.time_warp}', screen)
+    write_text(0, 60, f'new planet fixed position: {state.new_planet_fixed_position}', screen)
     border = 1 if debug else 0
 
     for planet in state.planets:
@@ -23,7 +24,7 @@ def draw(state: GameState, screen: pygame.Surface, debug: bool):
             describe_planet(planet, screen)
 
     if state.pending_planet is not None:
-        pending_planet = state.pending_planet.to_planet()
+        pending_planet = state.pending_planet.to_planet(state.new_planet_fixed_position)
         draw_planet(state, pending_planet, border, screen)
 
     pygame.display.flip()
@@ -50,6 +51,7 @@ def draw_planet(state: GameState, planet: Planet, border: int, screen: pygame.Su
 
 def describe_planet(planet: Planet, screen: pygame.Surface):
     text: str = f'PLANET' \
+                f'subject to gravity: {planet.fixed_position},' \
                 f'coord: ({planet.x}, {planet.y}),' \
                 f'mass: {planet.mass():.2f},' \
                 f'traj: ({planet.momentum[0]}, {planet.momentum[1]})'

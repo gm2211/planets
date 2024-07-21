@@ -16,6 +16,7 @@ class Planet:
     radius: int = 15
     momentum: Point = (0, 0)  # a vector can be represented as the end point of the vector
     density: int = 1_000
+    fixed_position: bool = False
     track: Deque[Point] = field(default_factory=Deque)
     max_track_length: int = 5_000
 
@@ -36,6 +37,11 @@ class Planet:
     def distance_to(self, planet: 'Planet') -> float:
         return math.sqrt((self.x - planet.x) ** 2 + (self.y - planet.y) ** 2)
 
+    def save_cur_pos_to_track(self):
+        self.track.append((self.x, self.y))
+        while len(self.track) > self.max_track_length:
+            self.track.popleft()
+
     def __hash__(self):
         return hash((
             self.x,
@@ -46,11 +52,6 @@ class Planet:
             self.density,
             sum(x.__hash__() for x in self.track)
         ))
-
-    def save_cur_pos_to_track(self):
-        self.track.append((self.x, self.y))
-        while len(self.track) > self.max_track_length:
-            self.track.popleft()
 
 
 @dataclass
@@ -63,8 +64,8 @@ class PendingPlanet:
     def copy(self, **changes) -> 'PendingPlanet':
         return dataclasses.replace(self, **changes)
 
-    def to_planet(self) -> Planet:
-        return Planet(self.x, self.y, radius=self.radius, momentum=self.momentum)
+    def to_planet(self, subject_to_gravity: bool) -> Planet:
+        return Planet(self.x, self.y, radius=self.radius, momentum=self.momentum, fixed_position=subject_to_gravity)
 
 
 @dataclass(frozen=True)
@@ -81,6 +82,7 @@ class GameState:
     largest_radius: float = 0
     universe_bottom_right: (int, int) = (2000, 1000)
     momentum_input_scale: int = 5_000
+    new_planet_fixed_position: bool = False
 
     @staticmethod
     def make_kdtree(planets: List[Planet]) -> KDTree:
