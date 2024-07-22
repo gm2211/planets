@@ -67,7 +67,7 @@ def handle_interrupts(state: GameState) -> GameState:
 
     # If we inside the if statement, it means either 'd' or 'e' was being held down.
     # Also, we don't want a negative density
-    new_new_planet_density = new_state.new_planet_density + new_state.new_planet_density_change * 10
+    new_new_planet_density = new_state.new_planet_density + new_state.new_planet_density_change * 100
     if new_state.new_planet_density_change != 0 and new_new_planet_density >= 1:
         new_state = new_state.copy(new_planet_density=new_new_planet_density)
 

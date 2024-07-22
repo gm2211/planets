@@ -29,10 +29,12 @@ def apply_gravitational_forces(state: GameState) -> GameState:
         for attracting_planet in new_state.planets:
             if attracting_planet == target_planet:
                 continue
+            # HACKHACK: we multiply by time warp here to compensate for when we multiply
+            #           the momentum by it in move_planets
             gravity_magnitude = gravity_acceleration(
                 attracting_planet.mass(),
                 target_planet.distance_to(attracting_planet)
-            )
+            ) * state.time_warp
             forces.append(
                 (
                     gravity_magnitude * (target_planet.x - attracting_planet.x),

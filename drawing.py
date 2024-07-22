@@ -9,19 +9,19 @@ yellow = (255, 255, 0)
 def draw(state: GameState, screen: pygame.Surface):
     screen.fill((0, 0, 0))
     write_text(
-        0, 0,
+        10, 0,
         '"q" to quit, "p" to pause, "r" to reset, "k" to increase radius, "j" to decrease radius',
         screen
     )
     write_text(
-        0, 20,
+        10, 20,
         '"f" to speed up, "s" to slow down, "e" to increase density, "w" to decrease density, "d" to debug',
         screen
     )
-    write_text(0, 40, f'radius: {state.radius}', screen)
-    write_text(0, 60, f'time warp: {state.time_warp}', screen)
-    write_text(0, 80, f'new planet density: {state.new_planet_density}', screen)
-    write_text(0, 100, f'new planet fixed position: {state.new_planet_fixed_position}', screen)
+    write_text(10, 40, f'radius: {state.radius}', screen)
+    write_text(10, 60, f'time warp: {state.time_warp}', screen)
+    write_text(10, 80, f'new planet density: {state.new_planet_density}', screen)
+    write_text(10, 100, f'new planet fixed position: {state.new_planet_fixed_position}', screen)
     border = 1 if state.debug else 0
 
     for planet in state.planets:
