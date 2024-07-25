@@ -1,5 +1,3 @@
-import dataclasses
-
 import pygame
 
 from collisions import find_first_collision
@@ -67,9 +65,17 @@ def handle_interrupts(state: GameState) -> GameState:
 
     # If we inside the if statement, it means either 'd' or 'e' was being held down.
     # Also, we don't want a negative density
-    new_new_planet_density = new_state.new_planet_density + new_state.new_planet_density_change * 100
+    new_new_planet_density = (new_state.new_planet_density + new_state.new_planet_density_change)
     if new_state.new_planet_density_change != 0 and new_new_planet_density >= 1:
-        new_state = new_state.copy(new_planet_density=new_new_planet_density)
+        new_new_planet_density_change = (
+                new_state.new_planet_density_change +
+                + (100 if new_state.new_planet_density_change > 0 else -100)
+        )
+        print(new_new_planet_density_change)
+        new_state = new_state.copy(
+            new_planet_density=new_new_planet_density,
+            new_planet_density_change=new_new_planet_density_change
+        )
 
     if new_state.pending_planet is not None:
         mouse_x, mouse_y = pygame.mouse.get_pos()

@@ -98,15 +98,22 @@ def check_collisions_absorb(state: GameState) -> GameState:
             if planet.mass() > collision.mass()
             else (collision, planet)
         )
+
         dying_planet_mass_ratio = dying_planet.mass() / (surviving_planet.mass() + dying_planet.mass())
         new_mass = surviving_planet.mass() + dying_planet.mass()
         new_radius = math.sqrt(new_mass / surviving_planet.density / math.pi)
+
         new_momentum = (
-            surviving_planet.momentum[0] + (dying_planet.momentum[0] * dying_planet_mass_ratio),
-            surviving_planet.momentum[1] + (dying_planet.momentum[1] * dying_planet_mass_ratio)
-        ) if not surviving_planet.fixed_position else (0, 0)
+            (0, 0) if surviving_planet.fixed_position else
+            (
+                surviving_planet.momentum[0] + (dying_planet.momentum[0] * dying_planet_mass_ratio),
+                surviving_planet.momentum[1] + (dying_planet.momentum[1] * dying_planet_mass_ratio)
+            )
+        )
+
         surviving_with_absorbed = surviving_planet.copy(radius=new_radius, momentum=new_momentum)
         new_state = new_state.with_append_planet(surviving_with_absorbed)
+
         removed_planets.append(dying_planet)
 
     return new_state
