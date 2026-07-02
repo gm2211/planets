@@ -1,7 +1,6 @@
 from functools import singledispatch
 
 from scipy.spatial import KDTree
-from typing import List
 
 from objects import Planet, GameState
 
@@ -19,7 +18,7 @@ def _(state: GameState, candidate: Planet) -> Planet | None:
 @find_first_collision.register
 def _(
         candidate: Planet,
-        planets: List[Planet],
+        planets: list[Planet],
         tree: KDTree,
         largest_radius: float
 ) -> Planet | None:

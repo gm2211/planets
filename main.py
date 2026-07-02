@@ -3,7 +3,7 @@ import pygame
 from controls import handle_interrupts
 from drawing import draw, write_text
 from objects import GameState
-from physics import apply_gravitational_forces, move_planets, check_collisions_absorb
+from physics import step
 
 if __name__ == '__main__':
     game_state = GameState()
@@ -11,6 +11,7 @@ if __name__ == '__main__':
     pygame.init()
     pygame.font.init()
     display = pygame.display.set_mode(game_state.universe_bottom_right)
+    clock = pygame.time.Clock()
 
     while not game_state.quit:
         game_state = handle_interrupts(game_state)
@@ -23,14 +24,13 @@ if __name__ == '__main__':
                 display
             )
             pygame.display.flip()
+            clock.tick(60)
             continue
 
         if game_state.pending_planet is None:
-            game_state = apply_gravitational_forces(game_state)
-            game_state = move_planets(game_state)
-            if len(game_state.planets) > 1:
-                game_state = check_collisions_absorb(game_state)
+            game_state = step(game_state)
 
         draw(game_state, display)
+        clock.tick(60)
 
     pygame.quit()
