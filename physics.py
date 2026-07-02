@@ -1,119 +1,164 @@
+"""Hamiltonian (symplectic) integrator for an N-body planet system.
+
+Uses Kick-Drift-Kick (KDK) leapfrog, the canonical 2nd-order symplectic
+integrator for separable Hamiltonians of the form
+
+    H(q, p) = sum_i  p_i^2 / (2 m_i)   +   - sum_{i<j} G m_i m_j / r_ij
+
+Energy oscillates within a bounded envelope but does not drift secularly
+(unlike forward Euler, which the prior implementation effectively was).
+
+Plummer softening epsilon avoids the 1/r^2 singularity at close encounter:
+
+    a_i = G * sum_{j != i}  m_j * (r_j - r_i) / (|r_j - r_i|^2 + eps^2)^(3/2)
+"""
+
 import math
 
-import scipy.constants
+import numpy as np
 
 from collisions import find_first_collision
 from objects import GameState
 
 
-# How much a body is accelerated towards the body with mass 'm' at distance d
-def gravity_acceleration(m: float, d: float) -> float:
-    # F = G * m1 * m2 / d^2,
-    # a = F / m1,
-    # a = G * m2 / d^2
-    return scipy.constants.G * m / max(scipy.constants.epsilon_0, d ** 2)
+def _compute_accelerations(
+        positions: np.ndarray,  # (N, 2)
+        masses: np.ndarray,     # (N,)
+        fixed: np.ndarray,      # (N,) bool
+        G: float,
+        soft2: float,
+) -> np.ndarray:
+    n = positions.shape[0]
+    if n < 2:
+        return np.zeros_like(positions)
+
+    # diff[i, j] = positions[j] - positions[i]  (vector pointing from i toward j)
+    diff = positions[np.newaxis, :, :] - positions[:, np.newaxis, :]  # (N, N, 2)
+    d2 = (diff * diff).sum(axis=2) + soft2  # (N, N)
+    inv_d3 = d2 ** -1.5
+    np.fill_diagonal(inv_d3, 0.0)  # no self-interaction
+
+    # a_i = G * sum_j m_j * diff_ij / d_ij^3
+    accel = G * (masses[np.newaxis, :, np.newaxis] * diff * inv_d3[:, :, np.newaxis]).sum(axis=1)
+
+    accel[fixed] = 0.0
+    return accel
 
 
-def apply_gravitational_forces(state: GameState) -> GameState:
-    if len(state.planets) < 2:
-        return state
+def step(state: GameState) -> GameState:
+    """Advance the simulation by `state.time_warp` KDK substeps of `state.dt` each.
 
-    new_state = state.copy()
+    Collision detection runs after every substep so close encounters that swing
+    through periapsis within a single frame still merge — otherwise the pair
+    appears to bounce as they cross and then get pulled back together next frame.
+    """
+    substeps = max(1, state.time_warp)
+    half_dt = 0.5 * state.dt
+    G = state.gravitational_constant
+    soft2 = state.softening ** 2
+    dt = state.dt
 
-    for target_planet in new_state.planets:
-        if target_planet.fixed_position:
-            continue
+    for _ in range(substeps):
+        planets = state.planets
+        n = len(planets)
+        if n == 0:
+            break
 
-        forces = [target_planet.momentum]
+        positions = np.array([[p.x, p.y] for p in planets], dtype=np.float64)
+        velocities = np.array([p.velocity for p in planets], dtype=np.float64)
+        masses = np.array([p.mass for p in planets], dtype=np.float64)
+        fixed = np.array([p.fixed_position for p in planets], dtype=bool)
+        moving = ~fixed
 
-        for attracting_planet in new_state.planets:
-            if attracting_planet == target_planet:
-                continue
-            # HACKHACK: we multiply by time warp here to compensate for when we multiply
-            #           the momentum by it in move_planets
-            gravity_magnitude = gravity_acceleration(
-                attracting_planet.mass(),
-                target_planet.distance_to(attracting_planet)
-            ) * state.time_warp
-            forces.append(
-                (
-                    gravity_magnitude * (target_planet.x - attracting_planet.x),
-                    gravity_magnitude * (target_planet.y - attracting_planet.y)
-                )
-            )
+        # KDK leapfrog substep.
+        accel = _compute_accelerations(positions, masses, fixed, G, soft2)
+        velocities[moving] += half_dt * accel[moving]
+        positions[moving] += dt * velocities[moving]
+        accel = _compute_accelerations(positions, masses, fixed, G, soft2)
+        velocities[moving] += half_dt * accel[moving]
 
-        total_force = (
-            sum([force[0] for force in forces]),
-            sum([force[1] for force in forces])
-        )
+        # Commit state back to planet objects (mutated in place; refs stable).
+        cap = state.trail_length
+        for i, p in enumerate(planets):
+            p.x = float(positions[i, 0])
+            p.y = float(positions[i, 1])
+            p.velocity = (float(velocities[i, 0]), float(velocities[i, 1]))
+            p.max_track_length = cap  # sync cap so '[' / ']' resizes live
+            p.track.append((p.x, p.y))
+            while len(p.track) > cap:
+                p.track.popleft()
 
-        target_planet.momentum = total_force
+        # Catch collisions that opened and closed within this frame.
+        if len(planets) > 1:
+            state = check_collisions_absorb(state)
 
-    return new_state
-
-
-def move_planets(state: GameState) -> GameState:
-    new_state = state.with_no_planets()
-
-    for planet in state.planets:
-        moved_planet = planet.copy()
-        moved_planet.save_cur_pos_to_track()
-
-        moved_planet.x -= planet.momentum[0] * state.time_warp
-        moved_planet.y -= planet.momentum[1] * state.time_warp
-
-        new_state = new_state.with_append_planet(moved_planet)
-
-    return new_state
+    if not state.planets:
+        return state.copy(planets_tree=None)
+    return state.copy(planets_tree=GameState.make_kdtree(state.planets))
 
 
 def check_collisions_absorb(state: GameState) -> GameState:
+    """Merge colliding planets, conserving total momentum and mass."""
+    if len(state.planets) < 2:
+        return state
+
     new_state = state.with_no_planets()
-    planets = state.planets.copy()
-    removed_planets = []
+    planets = list(state.planets)
+    removed = set()
 
     for planet in planets:
-        if planet in removed_planets:
+        if id(planet) in removed:
             continue
 
-        planets_to_consider = list(set(planets) - set(removed_planets) - {planet})
-
-        if len(planets_to_consider) == 0:
+        candidates = [p for p in planets if id(p) not in removed and p is not planet]
+        if not candidates:
             new_state = new_state.with_append_planet(planet)
             continue
 
         collision = find_first_collision(
             planet,
-            planets_to_consider,
-            GameState.make_kdtree(planets_to_consider),
-            max(planets_to_consider, key=lambda p: p.radius).radius
+            candidates,
+            GameState.make_kdtree(candidates),
+            max(c.radius for c in candidates),
         )
 
         if collision is None:
             new_state = new_state.with_append_planet(planet)
             continue
 
-        surviving_planet, dying_planet = (
+        survivor, dying = (
             (planet, collision)
-            if planet.mass() > collision.mass()
+            if planet.mass > collision.mass
             else (collision, planet)
         )
 
-        dying_planet_mass_ratio = dying_planet.mass() / (surviving_planet.mass() + dying_planet.mass())
-        new_mass = surviving_planet.mass() + dying_planet.mass()
-        new_radius = math.sqrt(new_mass / surviving_planet.density / math.pi)
+        m_s, m_d = survivor.mass, dying.mass
+        total_mass = m_s + m_d
+        # Cube-root scaling for the visible radius — physically motivated by
+        # constant-density 3D volume addition (V ~ r^3, so r ~ M^(1/3)).
+        new_radius = survivor.radius * (total_mass / m_s) ** (1.0 / 3.0)
+        # Mass-weighted density (so the merged body's stored density is the
+        # right average — matters if the user later inspects it or merges again).
+        new_density = (m_s * survivor.density + m_d * dying.density) / total_mass
 
-        new_momentum = (
-            (0, 0) if surviving_planet.fixed_position else
-            (
-                surviving_planet.momentum[0] + (dying_planet.momentum[0] * dying_planet_mass_ratio),
-                surviving_planet.momentum[1] + (dying_planet.momentum[1] * dying_planet_mass_ratio)
+        if survivor.fixed_position:
+            new_velocity = (0.0, 0.0)
+        else:
+            # Conservation of linear momentum: M*V = m_s*v_s + m_d*v_d
+            new_velocity = (
+                (m_s * survivor.velocity[0] + m_d * dying.velocity[0]) / total_mass,
+                (m_s * survivor.velocity[1] + m_d * dying.velocity[1]) / total_mass,
             )
+
+        merged = survivor.copy(
+            radius=new_radius,
+            velocity=new_velocity,
+            mass=total_mass,
+            density=new_density,
         )
-
-        surviving_with_absorbed = surviving_planet.copy(radius=new_radius, momentum=new_momentum)
-        new_state = new_state.with_append_planet(surviving_with_absorbed)
-
-        removed_planets.append(dying_planet)
+        new_state = new_state.with_append_planet(merged)
+        removed.add(id(dying))
+        # Survivor's old identity is also gone (replaced by `merged`); keep it out of future iters.
+        removed.add(id(survivor))
 
     return new_state

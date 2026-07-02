@@ -1,24 +1,43 @@
+import colorsys
 import dataclasses
 import math
+import random
+from collections import deque
 from dataclasses import dataclass, field
-from typing import List, Deque
 
 import pygame
 from scipy.spatial import KDTree
 
-type Point = (float, float)
+type Point = tuple[float, float]
+type Color = tuple[int, int, int]
+
+
+def _random_planet_color() -> Color:
+    h = random.random()
+    s = 0.55 + random.random() * 0.35
+    v = 0.85 + random.random() * 0.15
+    r, g, b = colorsys.hsv_to_rgb(h, s, v)
+    return int(r * 255), int(g * 255), int(b * 255)
 
 
 @dataclass
 class Planet:
     x: float = 0
     y: float = 0
-    radius: int = 15
-    momentum: Point = (0, 0)  # a vector can be represented as the end point of the vector
-    density: int = 1_000
+    radius: float = 15
+    velocity: Point = (0, 0)  # world units per second
+    density: float = 1_000  # real density (kg/m^3 for preset bodies; arbitrary for UI-placed)
+    mass: float = 0.0  # if 0 at construction, derived from area() * density
     fixed_position: bool = False
-    track: Deque[Point] = field(default_factory=Deque)
-    max_track_length: int = 5_000
+    track: deque[Point] = field(default_factory=deque)
+    max_track_length: int = 600
+    color: Color = field(default_factory=_random_planet_color)
+
+    def __post_init__(self):
+        # Allow callers to either supply mass directly (presets w/ real values)
+        # or let it be derived from radius+density (UI-placed planets).
+        if self.mass == 0:
+            self.mass = math.pi * self.radius ** 2 * self.density
 
     def copy(self, **changes) -> 'Planet':
         return dataclasses.replace(self, **changes)
@@ -30,9 +49,6 @@ class Planet:
 
     def area(self) -> float:
         return math.pi * self.radius ** 2
-
-    def mass(self) -> float:
-        return self.area() * self.density
 
     def distance_to(self, planet: 'Planet') -> float:
         return math.sqrt((self.x - planet.x) ** 2 + (self.y - planet.y) ** 2)
@@ -47,34 +63,35 @@ class Planet:
             self.x,
             self.y,
             self.radius,
-            self.momentum[0],
-            self.momentum[1],
+            self.velocity[0],
+            self.velocity[1],
             self.density,
-            sum(x.__hash__() for x in self.track)
         ))
 
 
 @dataclass
 class PendingPlanet:
-    x: int
-    y: int
+    x: float
+    y: float
     radius: int = 15
     density: int = 1_000
-    momentum: (float, float) = (0, 0)
+    velocity: Point = (0, 0)
     fixed_position: bool = False
+    color: Color = field(default_factory=_random_planet_color)
 
     def copy(self, **changes) -> 'PendingPlanet':
         return dataclasses.replace(self, **changes)
 
     def to_planet(self) -> Planet:
-        momentum = self.momentum if not self.fixed_position else (0, 0)
+        velocity = self.velocity if not self.fixed_position else (0, 0)
         return Planet(
             x=self.x,
             y=self.y,
             radius=self.radius,
-            momentum=momentum,
+            velocity=velocity,
             density=self.density,
-            fixed_position=self.fixed_position
+            fixed_position=self.fixed_position,
+            color=self.color,
         )
 
 
@@ -84,22 +101,41 @@ class GameState:
     paused: bool = False
     debug: bool = False
     radius: int = 15
-    radius_change: int = 0  # -1 for decreasing, 0 for now change, 1 for increasing
-    time_warp: int = 50
-    time_warp_change: int = 0  # -1 for decreasing, 0 for now change, 1 for increasing
+    radius_change: int = 0
+    # Substeps per render frame. Bigger = faster apparent time. Pure speed knob, not in force law.
+    time_warp: int = 5
+    time_warp_change: int = 0
     new_planet_density: int = 1_000
-    new_planet_density_change: int = 0  # -1 for decreasing, 0 for now change, 1 for increasing
-    planets: List[Planet] = field(default_factory=list)
+    new_planet_density_change: int = 0
+    planets: list[Planet] = field(default_factory=list)
     planets_tree: KDTree | None = None
     pending_planet: PendingPlanet | None = None
     largest_radius: float = 0
-    universe_bottom_right: (int, int) = (2000, 1000)
-    momentum_input_scale: int = 5_000
+    universe_bottom_right: tuple[int, int] = (2000, 1000)
+    velocity_input_scale: float = 15.0
     new_planet_fixed_position: bool = False
+    camera_x: float = 0.0
+    camera_y: float = 0.0
+    zoom: float = 1.0
+    panning: bool = False
+    pan_last_mouse: tuple[int, int] | None = None
+    # Trail length (per-planet sample cap). Synced onto every Planet each frame.
+    trail_length: int = 2000
+    trail_length_change: int = 0
+    # Hamiltonian integrator parameters.
+    dt: float = 0.02  # integration timestep, "seconds"
+    gravitational_constant: float = 0.03  # effective G chosen for visible dynamics at default scales
+    softening: float = 15.0  # Plummer softening (~ default planet radius); avoids 1/r^2 singularity
 
     @staticmethod
-    def make_kdtree(planets: List[Planet]) -> KDTree:
+    def make_kdtree(planets: list[Planet]) -> KDTree:
         return KDTree([[planet.x, planet.y] for planet in planets])
+
+    def world_to_screen(self, wx: float, wy: float) -> tuple[float, float]:
+        return (wx - self.camera_x) * self.zoom, (wy - self.camera_y) * self.zoom
+
+    def screen_to_world(self, sx: float, sy: float) -> tuple[float, float]:
+        return sx / self.zoom + self.camera_x, sy / self.zoom + self.camera_y
 
     def copy(self, **changes) -> 'GameState':
         return dataclasses.replace(self, **changes)
